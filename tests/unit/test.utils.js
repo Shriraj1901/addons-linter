@@ -347,6 +347,18 @@ describe('normalizePath', () => {
   it('should not escape spaces within path', () => {
     expect(normalizePath('foo/bar baz/qux')).toEqual('foo/bar baz/qux');
   });
+
+  it('should decode percent-encoded characters within path', () => {
+    expect(normalizePath('foo/bar%20baz/%E3%81%82.png')).toEqual(
+      'foo/bar baz/あ.png'
+    );
+  });
+
+  it('should not throw on a percent sign that is not part of an escape sequence', () => {
+    expect(normalizePath('icons/100%.png')).toEqual('icons/100%.png');
+    expect(normalizePath('icons/a%20b%.png')).toEqual('icons/a b%.png');
+    expect(normalizePath('icons/%E3%81%zz.png')).toEqual('icons/%E3%81%zz.png');
+  });
 });
 
 describe('firefoxStrictMinVersion', () => {

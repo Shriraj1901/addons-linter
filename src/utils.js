@@ -78,9 +78,20 @@ export function normalizePath(iconPath) {
   // using https://example.com/.
   const { pathname } = new URL(iconPath, 'https://example.com/');
 
+  // Decode percent-encoded sequences. A "%" that does not start a valid
+  // escape sequence (e.g. in a file named `100%.png`) is kept as is instead
+  // of making `decodeURIComponent()` throw.
+  const decodedPathname = pathname.replace(/(?:%[\da-f]{2})+/gi, (sequence) => {
+    try {
+      return decodeURIComponent(sequence);
+    } catch {
+      return sequence;
+    }
+  });
+
   // Convert filename to unix path separator (as the ones stored
   // into the scanned files map).
-  return upath.toUnix(decodeURIComponent(pathname).slice(1));
+  return upath.toUnix(decodedPathname.slice(1));
 }
 
 /*
