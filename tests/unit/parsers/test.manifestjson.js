@@ -679,6 +679,45 @@ describe('ManifestJSONParser', () => {
       expect(manifestJSONParser.collector.errors).toEqual([]);
     });
 
+    it('reports the full index of an invalid permission when it has more than one digit', () => {
+      const addonLinter = new Linter({ _: ['bar'] });
+      const json = validManifestJSON({
+        manifest_version: 3,
+        permissions: [
+          'activeTab',
+          'alarms',
+          'bookmarks',
+          'clipboardRead',
+          'clipboardWrite',
+          'contextMenus',
+          'cookies',
+          'downloads',
+          'history',
+          'idle',
+          'notifications',
+          '*://example.org/*',
+        ],
+      });
+
+      const manifestJSONParser = new ManifestJSONParser(
+        json,
+        addonLinter.collector,
+        { schemaValidatorOptions: { maxManifestVersion: 3 } }
+      );
+      expect(manifestJSONParser.collector.warnings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'MANIFEST_PERMISSIONS',
+            instancePath: '/permissions/11',
+            message: expect.stringMatching(
+              /Invalid permissions "\*:\/\/example\.org\/\*" at 11\./
+            ),
+          }),
+        ])
+      );
+      expect(manifestJSONParser.collector.errors).toEqual([]);
+    });
+
     it('ignores invalid host_permissions manifest key values in MV2', () => {
       const addonLinter = new Linter({ _: ['bar'] });
       const json = validManifestJSON({
@@ -5514,6 +5553,40 @@ describe('ManifestJSONParser', () => {
         );
       }
     );
+
+    it('reports the full index of an invalid install origin when it has more than one digit', () => {
+      const origins = Array.from(
+        { length: 12 },
+        (_, index) => `https://foo${index}.com`
+      );
+      origins[11] = 'https://bar.com/path';
+
+      const addonLinter = new Linter({ _: ['bar'] });
+      const json = validManifestJSON({
+        install_origins: origins,
+        browser_specific_settings: {
+          gecko: {
+            id: 'foo@bar',
+          },
+        },
+      });
+      const manifestJSONParser = new ManifestJSONParser(
+        json,
+        addonLinter.collector
+      );
+      expect(manifestJSONParser.isValid).toEqual(false);
+      // There is also an error because the manifest has too many origins.
+      expect(addonLinter.collector.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'MANIFEST_INSTALL_ORIGINS',
+            message: expect.stringMatching(
+              /\/install_origins: Invalid install_origins "https:\/\/bar\.com\/path" at 11\./
+            ),
+          }),
+        ])
+      );
+    });
 
     it.each([
       { origins: {}, expectedError: 'MANIFEST_FIELD_INVALID' },
